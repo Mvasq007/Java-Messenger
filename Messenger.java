@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.*;
 
 /**
  * This class defines a simple embedded SQL utility class that is designed to
@@ -133,6 +134,25 @@ public class Messenger {
     * @return the number of rows returned
     * @throws java.sql.SQLException when failed to execute the query
     */
+   public String getlistid (String authorisedUser, int type) throws SQLException {
+	   //0 = contact, 1 = block
+	   String listtype = "contact_list";
+	   if (type == 1) listtype = "block_list";	   
+	   String query = String.format("SELECT " + listtype + " FROM Usr WHERE login = '%s'", authorisedUser);
+	   Statement stmt = this._connection.createStatement ();
+	   ResultSet rs = stmt.executeQuery (query);
+	   rs.next();
+	   return rs.getString(1);
+   }
+   
+   public String getuserfromphone (String phonenum) throws SQLException {
+	   String query = String.format("SELECT login FROM Usr WHERE phoneNum = '%s'", phonenum);
+	   Statement stmt = this._connection.createStatement ();
+	   ResultSet rs = stmt.executeQuery (query);
+	   rs.next();
+	   return rs.getString(1);
+   }
+	   
    public int executeQuery (String query) throws SQLException {
        // creates a statement object
        Statement stmt = this._connection.createStatement ();
@@ -229,20 +249,28 @@ public class Messenger {
               while(usermenu) {
                 System.out.println("MAIN MENU");
                 System.out.println("---------");
-                System.out.println("1. Add to contact list");
-                System.out.println("2. Browse contact list");
-                System.out.println("3. Write a new message");
-                System.out.println("4. Read notification list");
-                System.out.println("5. Delete your account");                
+                System.out.println("1. Browse contact list");
+                System.out.println("2. Add to contact list");
+                System.out.println("3. Delete from contact list");
+                System.out.println("4. Browse block list");
+                System.out.println("5. Add to block list");
+                System.out.println("6. Delete from block list");
+                System.out.println("7. Read notification list");
+                System.out.println("8. Chats");
+                System.out.println("9. Delete your account");                
                 System.out.println(".........................");
-                System.out.println("9. Log out");
+                System.out.println("0. Log out");
                 switch (readChoice()){
-                   case 1: AddToContact(esql); break;
-                   case 2: ListContacts(esql, authorisedUser); break;
-                   case 3: NewMessage(esql); break;
-                   case 4: ReadNotifications(esql); break;
-                   case 5: {if(deleteacc(esql)) usermenu = false;  break; }                  
-                   case 9: usermenu = false; break;
+                   case 1: ListContacts(esql, authorisedUser); break;
+                   case 2: AddToContact(esql, authorisedUser); break;
+                   case 3: DeleteContact(esql, authorisedUser); break;
+                   case 4: ListBlocks(esql, authorisedUser); break;
+                   case 5: AddToBlock(esql, authorisedUser); break;
+                   case 6: DeleteBlock(esql, authorisedUser); break;
+                   case 7: ReadNotifications(esql, authorisedUser); break;
+                   case 8: Chats(esql, authorisedUser); break;
+                   case 9: {if(deleteacc(esql)) usermenu = false;  break; }                  
+                   case 0: usermenu = false; break;
                    default : System.out.println("Unrecognized choice!"); break;
                 }
               }
@@ -347,37 +375,286 @@ public class Messenger {
       }
    }//end
 
-   public static void AddToContact(Messenger esql){
-      // Your code goes here.
-      // ...
-      // ...
+   public static void AddToContact(Messenger esql, String authorisedUser){
+	   String contact = "";
+	   String query = "";
+	   boolean go = true;
+	   int choice = 0;
+	   try{
+		    while(go) {
+				System.out.println("Add Contact Menu");
+				System.out.println("---------");
+				System.out.println("1. Add by login");
+				System.out.println("2. Add by phone number");
+				System.out.println("3. Back");
+				choice = readChoice();
+				switch(choice) {
+					case 1: System.out.print("\tEnter contact login: ");
+							contact = in.readLine();
+							query = String.format("SELECT * FROM Usr WHERE login = '%s'", contact);
+							go = false;
+							break;
+					case 2: System.out.print("\tEnter contact phone number: ");
+							contact = in.readLine();                
+							query = String.format("SELECT * FROM Usr WHERE phoneNum  = '%s'", contact); 
+							go = false;
+							break;
+					case 3: return;
+					default : System.out.println("Unrecognized choice!"); break;
+				}
+			}
+			int userNum = esql.executeQuery(query);
+			if (userNum == 0) {
+				System.out.println("User does not exist");
+				return;
+			}
+		}
+		catch (Exception e) {
+			//System.err.println (e.getMessage ());
+			return;
+		}
+		try{
+			if (choice == 2) {
+				contact = esql.getuserfromphone(contact);
+			}
+			String listid = esql.getlistid(authorisedUser, 0);
+			query = String.format("INSERT INTO USER_LIST_CONTAINS VALUES (" + listid + ", '" + contact + "')");
+			esql.executeUpdate(query);
+			System.out.println("Contact successfully added.");
+		}
+		catch (Exception e) {
+			System.out.println("User already exists in contact list.");
+			//System.err.println (e.getMessage ());
+			return;
+		}      
+   }//end
+
+   public static void AddToBlock(Messenger esql, String authorisedUser){
+	   String contact = "";
+	   String query = "";
+	   boolean go = true;
+	   int choice = 0;
+	   try{
+		    while(go) {
+				System.out.println("Block User Menu");
+				System.out.println("---------");
+				System.out.println("1. Add by login");
+				System.out.println("2. Add by phone number");
+				System.out.println("3. Back");
+				choice = readChoice();
+				switch(choice) {
+					case 1: System.out.print("\tEnter user login: ");
+							contact = in.readLine();
+							query = String.format("SELECT * FROM Usr WHERE login = '%s'", contact);
+							go = false;
+							break;
+					case 2: System.out.print("\tEnter user phone number: ");
+							contact = in.readLine();                
+							query = String.format("SELECT * FROM Usr WHERE phoneNum  = '%s'", contact); 
+							go = false;
+							break;
+					case 3: return;
+					default : System.out.println("Unrecognized choice!"); break;
+				}
+			}
+			int userNum = esql.executeQuery(query);
+			if (userNum == 0) {
+				System.out.println("User does not exist.");
+				return;
+			}
+		}
+		catch (Exception e) {
+			//System.err.println (e.getMessage ());
+			return;
+		}
+		try{
+			if (choice == 2) {
+				contact = esql.getuserfromphone(contact);
+			}
+			if(contact.equals(authorisedUser))
+			{
+				System.out.println("Can not block yourself");
+				return;
+			}
+			String listid = esql.getlistid(authorisedUser, 1);
+			query = String.format("INSERT INTO USER_LIST_CONTAINS VALUES (" + listid + ", '" + contact + "')");
+			esql.executeUpdate(query);
+			System.out.println("User successfully added to block list.");
+		}
+		catch (Exception e) {
+			System.out.println("User already exists in block list.");
+			//System.err.println (e.getMessage ());
+			return;
+		}   
+   }//end
+   
+   public static void DeleteBlock(Messenger esql, String authorisedUser){
+	   String contact = "";
+	   String query = "";
+	   boolean go = true;
+	   int choice = 0;
+	   try{
+		    while(go) {
+				System.out.println("Block Delete Menu");
+				System.out.println("---------");
+				System.out.println("1. Delete by login");
+				System.out.println("2. Delete by phone number");
+				System.out.println("3. Back");
+				choice = readChoice();
+				switch(choice) {
+					case 1: System.out.print("\tEnter user login: ");
+							contact = in.readLine();
+							query = String.format("SELECT * FROM Usr WHERE login = '%s'", contact);
+							go = false;
+							break;
+					case 2: System.out.print("\tEnter user phone number: ");
+							contact = in.readLine();                
+							query = String.format("SELECT * FROM Usr WHERE phoneNum  = '%s'", contact); 
+							go = false;
+							break;
+					case 3: return;
+					default : System.out.println("Unrecognized choice!"); break;
+				}
+			}
+			int userNum = esql.executeQuery(query);
+			if (userNum == 0) {
+				System.out.println("User does not exist.");
+				return;
+			}
+		}
+		catch (Exception e) {
+			//System.err.println (e.getMessage ());
+			return;
+		}
+		try{
+			if (choice == 2) {
+				contact = esql.getuserfromphone(contact);
+			}
+			String listid = esql.getlistid(authorisedUser, 1);
+			query = String.format("SELECT * FROM USER_LIST_CONTAINS WHERE list_id = " + listid + " AND list_member = '" + contact + "'");
+			int userNum = esql.executeQuery(query);
+			if(userNum == 0)
+			{
+				System.out.println("User is not in block list.");
+				return;
+			}
+
+			query = String.format("DELETE FROM USER_LIST_CONTAINS WHERE list_id = " + listid + " AND list_member = '" + contact + "'");
+			esql.executeUpdate(query);
+			System.out.println("User successfully removed from block list.");
+		}
+		catch (Exception e) {
+			//System.out.println("User is not in block list.");
+			System.err.println (e.getMessage ());
+			return;
+		}   
+   }//end   
+   
+   public static void DeleteContact(Messenger esql, String authorisedUser){
+	   String contact = "";
+	   String query = "";
+	   boolean go = true;
+	   int choice = 0;
+	   try{
+		    while(go) {
+				System.out.println("Contact Delete Menu");
+				System.out.println("---------");
+				System.out.println("1. Delete by login");
+				System.out.println("2. Delete by phone number");
+				System.out.println("3. Back");
+				choice = readChoice();
+				switch(choice) {
+					case 1: System.out.print("\tEnter user login: ");
+							contact = in.readLine();
+							query = String.format("SELECT * FROM Usr WHERE login = '%s'", contact);
+							go = false;
+							break;
+					case 2: System.out.print("\tEnter user phone number: ");
+							contact = in.readLine();                
+							query = String.format("SELECT * FROM Usr WHERE phoneNum  = '%s'", contact); 
+							go = false;
+							break;
+					case 3: return;
+					default : System.out.println("Unrecognized choice!"); break;
+				}
+			}
+			int userNum = esql.executeQuery(query);
+			if (userNum == 0) {
+				System.out.println("User does not exist.");
+				return;
+			}
+		}
+		catch (Exception e) {
+			//System.err.println (e.getMessage ());
+			return;
+		}
+		try{
+			if (choice == 2) {
+				contact = esql.getuserfromphone(contact);
+			}
+			String listid = esql.getlistid(authorisedUser, 0);
+			query = String.format("SELECT * FROM USER_LIST_CONTAINS WHERE list_id = " + listid + " AND list_member = '" + contact + "'");
+			int userNum = esql.executeQuery(query);
+			if(userNum == 0)
+			{
+				System.out.println("User is not in contacts list.");
+				return;
+			}
+
+			query = String.format("DELETE FROM USER_LIST_CONTAINS WHERE list_id = " + listid + " AND list_member = '" + contact + "'");
+			esql.executeUpdate(query);
+			System.out.println("User successfully removed from contacts list.");
+		}
+		catch (Exception e) {
+			//System.out.println("User is not in block list.");
+			System.err.println (e.getMessage ());
+			return;
+		}   
+   }//end   
+   
+
+
+   public static void ListContacts(Messenger esql, String authorisedUser){
+	    try{
+			String query = String.format("SELECT C2.list_member,L2.status FROM (SELECT C.list_member FROM USR L, USER_LIST_CONTAINS C WHERE L.contact_list = C.list_id AND L.login = '" + authorisedUser + "') as C2, USR L2 WHERE C2.list_member = L2.login");
+			int rows =  esql.executeQueryAndPrintResult(query);
+			System.out.println("Total Contacts: " + rows);
+           
+		}catch(Exception e){
+			System.err.println (e.getMessage ());
+			return;
+		}	
+
+   }//end
+   
+   public static void ListBlocks(Messenger esql, String authorisedUser){
+	    try{
+			String query = String.format("SELECT C.list_member FROM USR L, USER_LIST_CONTAINS C WHERE L.block_list = C.list_id AND L.login = '" + authorisedUser + "'");
+			int rows =  esql.executeQueryAndPrintResult(query);
+			System.out.println("Total Blocks: " + rows);
+           
+		}catch(Exception e){
+			System.err.println (e.getMessage ());
+			return;
+		}	
+
+   }
+
+   public static void ReadNotifications(Messenger esql, String authorisedUser){
+	    try{
+			String query = String.format("SELECT M.sender_login FROM NOTIFICATION N, MESSAGE M WHERE N.msg_id = M.msg_id AND N.usr_login = '" + authorisedUser + "'");
+			System.out.println("New Notifcations from: ");
+			int rows =  esql.executeQueryAndPrintResult(query);
+			System.out.println("Total Notification: " + rows);
+            
+		}catch(Exception e){
+			System.err.println (e.getMessage ());
+			return;
+		}	      
       
    }//end
 
-   public static void ListContacts(Messenger esql, String user){
-      // Your code goes here.
-      // ...
-      // ...
-		String query = String.format("SELECT * FROM Usr_list L, usr_list_contains C WHERE L.listid = C.listid AND list_tpye = 'contact'");
-
-   }//end
-
-   public static void NewMessage(Messenger esql){
-      // Your code goes here.
-      // ...
-      // ...
-   }//end 
-
-   public static void ReadNotifications(Messenger esql){
-      // Your code goes here.
-      // ...
-      // ...
-   }//end
-
    public static boolean deleteacc(Messenger esql){
-      // Your code goes here.
-      // ...
-      // ...
       System.out.println("Are you sure you wish to delete your account?");
       System.out.println("0. Yes");
       System.out.println("1. No");
@@ -409,11 +686,456 @@ public class Messenger {
             return false;//end switch     
    }//end
 
+   public static void ListChats(Messenger esql, String authorisedUser){
+	    try{
+			System.out.println("Private Chats:");
+			String query = String.format("(SELECT c.chat_id,max_time.max as \"Most Recent Timestamp \"FROM (SELECT chat_id FROM CHAT_LIST GROUP BY chat_id HAVING COUNT (member) < 3) as stuff, chat_list c, (select chat_id, max(msg_timestamp) from message group by chat_id) as max_time WHERE c.chat_id = stuff.chat_id AND member = '" + authorisedUser + "'AND max_time.chat_id = c.chat_id) ORDER BY max_time.max DESC");
+			int rows =  esql.executeQueryAndPrintResult(query);
+			System.out.println("Public Chats:");
+			query = String.format("(SELECT c.chat_id,max_time.max as \"Most Recent Timestamp \"FROM (SELECT chat_id FROM CHAT_LIST GROUP BY chat_id HAVING COUNT (member) > 2) as stuff, chat_list c, (select chat_id, max(msg_timestamp) from message group by chat_id) as max_time WHERE c.chat_id = stuff.chat_id AND member = '" + authorisedUser + "'AND max_time.chat_id = c.chat_id) ORDER BY max_time.max DESC");
+		    rows +=  esql.executeQueryAndPrintResult(query);
+			System.out.println("Total Chats: " + rows);
+		}catch(Exception e){
+			System.err.println (e.getMessage ());
+			return;
+		}
+        try{
+            System.out.println("Which chat would you like to view? (Chat ID)");
+            String chatid = in.readLine();
+            String query = String.format( "SELECT member FROM CHAT_LIST WHERE chat_id ="+ chatid +" AND member = '" + authorisedUser + "'" );
+            int rows = esql.executeQuery(query);
+            if(rows == 0)
+            {
+                System.out.println("You are not in the chat");
+                return;
+            }
+            ViewMessages(esql, authorisedUser, chatid);
+        } catch (Exception e) {
+            System.err.println (e.getMessage ());
+        }
+    }//end
+   
+   public static List<String> fillArray (Messenger esql, String authorisedUser, String chatid) throws SQLException{
+       List<String> messagelist = new ArrayList<String>();
+       String listid = esql.getlistid (authorisedUser, 1);
+       String query = String.format("SELECT message.msg_id,sender_login,msg_text,msg_timestamp,media_type,URL FROM message LEFT OUTER JOIN media_attachment ON (message.msg_id = media_attachment.msg_id) WHERE message.chat_id = " + chatid + " AND sender_login NOT IN (SELECT list_member FROM USER_LIST_CONTAINS WHERE list_id = " + listid + ") ORDER BY msg_timestamp DESC");
+       Statement stmt = esql._connection.createStatement ();
+       ResultSet rs = stmt.executeQuery (query);
+       ResultSetMetaData rsmd = rs.getMetaData ();
+       int numCol = rsmd.getColumnCount ();
+      while (rs.next()) {
+         String currentmessage = "";
+         for (int i=1; i<=numCol; ++i) {
+			String temp = rs.getString(i);
+			if (temp != null) currentmessage += (temp + "|");
+		 }
+         messagelist.add(currentmessage);
+      }//end while
+      stmt.close ();
+      return messagelist;
+  }
+    
+   public static void ViewMessages(Messenger esql, String authorisedUser, String chatid) {
+      try {
+      List<String> messagelist = fillArray(esql,authorisedUser,chatid);     
+      int total = messagelist.size();
+      int blah = 10;
+      int current = blah;
+      if (current > total) current = total;
+      for (int i = current-1; i >= current - blah && i >= 0; i--) {
+            System.out.println(messagelist.get(i));
+      }
+      boolean usermenu = true;
+      while(usermenu) {
+        boolean showmessages = true;
+        System.out.println("1. Browse Older Messages");
+        System.out.println("2. Browse Newer Messages");
+        System.out.println("3. Create Message");
+        System.out.println("4. Edit Message");
+        System.out.println("5. Delete Message");
+        System.out.println(".........................");
+        System.out.println("0. Go Back");
+        int choice = readChoice();
+        switch(choice) {
+            case 1: if (current < total) {
+                        current += blah;
+                        if (current > total) current = total;
+                        showmessages = true;
+                    }
+                    else {
+                        System.out.println("No Older messages");
+                        showmessages = false;
+                    }
+                    break;
+            case 2: if (current > blah) {
+                        current -= blah;
+                        if (current < blah) current = blah;
+                        showmessages = true;
+                    }
+                    else {
+                        System.out.println("No Newer messages");
+                        showmessages = false;
+                    }
+                    break;
+            case 3: createMessage(esql, authorisedUser, chatid);messagelist = fillArray(esql,authorisedUser,chatid);     
+                    showmessages = true; 
+                    total = messagelist.size();
+                    current = (blah > total) ? total : blah; 
+                    break;
+            case 4: showmessages = editMessage(esql, authorisedUser,chatid); messagelist = fillArray(esql,authorisedUser,chatid);     
+                    break;
+            case 5: showmessages = deleteMessage(esql, authorisedUser,chatid);messagelist = fillArray(esql,authorisedUser,chatid);     
+                    total = messagelist.size();
+                    current = (current > total) ? total : current; break;
+            case 0: usermenu = false; break;
+            default : System.out.println("Unrecognized choice!"); showmessages = false; break;
+        }
+        if (!usermenu) break;
+        if (!showmessages) continue;                        
+        for (int i = current-1; i >= current - blah && i >= 0; i--) {
+            System.out.println(messagelist.get(i));
+        }
+    }
+    String query = String.format("DELETE FROM message WHERE chat_id = " + chatid + " AND destr_timestamp < now()");
+    esql.executeUpdate(query);
+    query = String.format("DELETE FROM NOTIFICATION where msg_id in (select msg_id from message where message.msg_id = notification.msg_id and notification.usr_login = '" + authorisedUser + "' AND message.chat_id = " + chatid + ")");
+    esql.executeUpdate(query);
+      } catch (Exception e) {
+          System.err.println (e.getMessage ());
+          return;
+      }
+          
+  }
+    
+  public static boolean editMessage (Messenger esql, String authorisedUser, String chatid) {
+      try {
+          System.out.println("Which message would you like to edit? (Message ID)");
+          String msgid = in.readLine();
+          String query = ("SELECT * FROM message WHERE msg_id = " + msgid + " AND sender_login = '" + authorisedUser + "' AND chat_id = " + chatid);
+          int rows = esql.executeQuery(query);
+          if (rows == 0) {
+              System.out.println("That message does not belong to you or does not exist in this chat");
+              return false;
+          }
+          System.out.println("What would you like the message to say now?");
+          String text = in.readLine();
+          query = ("UPDATE message SET msg_text = '" + text + "' WHERE msg_id = " + msgid);
+          esql.executeUpdate(query);
+          System.out.println("Message successfully edited");
+          int asdf = esql.getCurrSeqVal("message_msg_id_seq");
+          query = String.format("SELECT member FROM chat_list WHERE chat_id = " + chatid);
+          List<String> memberlist = new ArrayList<String>();
+          Statement stmt = esql._connection.createStatement ();
+          ResultSet rs = stmt.executeQuery (query);
+          while (rs.next()) {
+		  	String temp = rs.getString(1);
+            System.out.println(temp);
+            if (!temp.equals(authorisedUser)) memberlist.add(temp);
+          }
+          for (int i = 0; i < memberlist.size(); i++) {
+            query = String.format("INSERT INTO NOTIFICATION (msg_id, usr_login) values (" + asdf + ", '"+ memberlist.get(i) +"')");
+            esql.executeUpdate(query);        
+          }
+          return true;
+      } catch (Exception e) {
+          System.err.println (e.getMessage ());
+          return false;
+      }
+  }
+  public static boolean deleteMessage (Messenger esql, String authorisedUser, String chatid) {
+      try {
+          System.out.println("Which message would you like to delete? (Message ID)");
+          String msgid = in.readLine();
+          String query = ("SELECT * FROM message WHERE msg_id = " + msgid + " AND sender_login = '" + authorisedUser + "' AND chat_id = " + chatid);
+          int rows = esql.executeQuery(query);
+          if (rows == 0) {
+              System.out.println("That message does not belong to you or does not exist in this chat");
+              return false;
+          }
+          query = ("DELETE FROM message WHERE msg_id = " + msgid + " AND sender_login = '" + authorisedUser + "' AND chat_id = " + chatid);
+          esql.executeUpdate(query);
+          System.out.println("Message successfully deleted");
+          return true;
+      } catch (Exception e) {
+          System.err.println (e.getMessage ());
+          return false;
+      }
+  }
+          
+  
+  public static void createMessage (Messenger esql, String authorisedUser, String chatid) {
+	  try {
+        System.out.println("What would you like your message to say?");
+        String text = in.readLine();
+        String query = String.format("INSERT INTO message (msg_text,msg_timestamp,sender_login,chat_id) VALUES ('" + text + "',now(),'" + authorisedUser + "'," + chatid + ")");
+	    esql.executeUpdate(query);
+        System.out.println("Message sent.");
+        int asdf = esql.getCurrSeqVal("message_msg_id_seq");
+        query = String.format("SELECT member FROM chat_list WHERE chat_id = " + chatid);
+        List<String> memberlist = new ArrayList<String>();
+        Statement stmt = esql._connection.createStatement ();
+        ResultSet rs = stmt.executeQuery (query);
+        while (rs.next()) {
+			String temp = rs.getString(1);
+            System.out.println(temp);
+            if (!temp.equals(authorisedUser)) memberlist.add(temp);
+        }
+        for (int i = 0; i < memberlist.size(); i++) {
+            query = String.format("INSERT INTO NOTIFICATION (msg_id, usr_login) values (" + asdf + ", '"+ memberlist.get(i) +"')");
+            esql.executeUpdate(query);        
+        }
+    
+      } catch (Exception e) {
+          System.err.println (e.getMessage ());
+      }
+  }
+      
+      
+       
+   
+   public static void AddChats(Messenger esql, String authorisedUser) {
+	   String chat_type = "";
+	   int choice = 0;
+	   boolean usermenu = true;
+	   while (usermenu) {
+		   System.out.println("Create Chat MENU");	
+           System.out.println("---------");
+           System.out.println("1. Private Chat");
+           System.out.println("2. Public Chat");
+           System.out.println(".........................");
+           System.out.println("0. Go Back");
+           choice = readChoice();
+           switch(choice) {
+			   case 1: chat_type = "Private"; break;
+			   case 2: chat_type = "Public"; break;
+			   case 0: usermenu = false; break;
+			   default : System.out.println("Unrecognized choice!"); break;
+		   }
+		   if (!usermenu) break;
+		   try {
+			   String query = String.format("INSERT INTO chat (chat_type, init_sender) VALUES ('" + chat_type + "','" + authorisedUser + "')");
+			   esql.executeUpdate(query);
+		   } catch (Exception e) {
+			   System.err.println (e.getMessage ());
+			   return;
+		   }
+		   String curseq = "";
+		   try {
+			   int asdf = esql.getCurrSeqVal("chat_chat_id_seq");
+			   curseq = Integer.toString(asdf);
+			   String query = String.format("INSERT INTO chat_list (chat_id	, member) VALUES (" + curseq + ",'" + authorisedUser + "')");
+			   esql.executeUpdate(query);
+		   } catch (Exception e) {
+			   System.err.println (e.getMessage ());
+			   return;
+		   }
+		   try {
+			   String query = String.format("INSERT INTO message (msg_text, msg_timestamp, sender_login, chat_id) VALUES ('" + authorisedUser + " created this chat',now(),'" + authorisedUser + "','" + curseq + "')");
+			   esql.executeUpdate(query);
+		   } catch (Exception e) {
+			   System.err.println (e.getMessage ());
+			   return;
+		   }
+		   Editsubmenu(esql, authorisedUser, curseq);
+		   usermenu = false;
+	   }
+   }
+   
+      public static void RemoveUsers(Messenger esql, String authorisedUser, String id)
+   {
+       try
+       {
+               String query = String.format( "SELECT member FROM CHAT_LIST WHERE chat_id ="+id );
+            int rows = esql.executeQueryAndPrintResult(query);
+ 
+       System.out.println("Enter Login of user you wish to remove: ");
+       String login = in.readLine();
+       if(login.equals(authorisedUser))
+       {
+           System.out.println("Can not remove yourself, to do so you must delete entire chat log");
+       }
+       else  
+       {
+               query = String.format( "SELECT member FROM CHAT_LIST WHERE chat_id ="+id +" AND member = '" + login+"'" );
+            rows = esql.executeQuery(query);
+            if(rows == 0)
+            {
+                System.out.println("Login is not in the chat");
+                return;
+            }
+            else
+            {
+                query = String.format("DELETE FROM CHAT_LIST WHERE member = '"+login+"' AND chat_id = " + id);
+                esql.executeUpdate(query);
+                System.out.println("Login successfully removed");
+            }
+        }
+   }catch(Exception e){
+            System.err.println (e.getMessage ());
+            return;
+        }     
+        
+ 
+        
+   }
+ 
+   public static void AddUsers(Messenger esql, String authorisedUser, String id)
+   {
+       try
+       {
+            System.out.println("Users currently in chat:");
+            String query = String.format( "SELECT member FROM CHAT_LIST WHERE chat_id ="+id );
+            int rows = esql.executeQueryAndPrintResult(query);
+       System.out.println("Enter Login of user you wish to Add: ");
+       String login = in.readLine();
+       if(login.equals(authorisedUser))
+       {
+           System.out.println("Can not add yourself, you are already a member");
+       }
+       else  
+       {
+            query = String.format("Select * FROM USR where login = '" + login + "'");
+            if(rows == 0)
+            {
+                System.out.println("Login does not exist");
+                return;
+            }
+            query = String.format( "SELECT member FROM CHAT_LIST WHERE chat_id ="+id +" AND member = '" + login+"'" );
+            rows = esql.executeQueryAndPrintResult(query);
+            if(rows != 0)
+            {
+                System.out.println("Login is already in the chat");
+                return;
+            }
+            else
+            {
+                query = String.format("INSERT INTO CHAT_LIST (chat_id, member) VALUES ("+id+ ", '"+login+"')");
+                esql.executeUpdate(query);
+                System.out.println("Login successfully added");
+            }
+        }
+   }catch(Exception e){
+            System.err.println (e.getMessage ());
+            return;
+        }     
+        
+ 
+        
+   }    
+    
+   public static void Editsubmenu(Messenger esql, String authorisedUser, String id)
+                    {
+                        System.out.println("What would you like to do?");
+                        boolean usermenu = true;
+                          while(usermenu) {
+                            System.out.println("---------");
+                            System.out.println("1. Add Users");
+                            System.out.println("2. Remove Users");
+                        
+                            System.out.println(".........................");
+                            System.out.println("0. Go Back");
+                            switch (readChoice()){
+                               case 1: AddUsers(esql, authorisedUser, id); break;
+                               case 2: RemoveUsers(esql, authorisedUser, id); break;
+                               case 0: usermenu = false; break;
+                               default : System.out.println("Unrecognized choice!"); break;
+                            }
+                          }
+                    }
 
-   public static void Query6(Messenger esql){
-      // Your code goes here.
-      // ...
-      // ...
+   
+   public static void DeleteChats(Messenger esql, String authorisedUser) {
+	   String chatid = "";
+	   try {
+            String query = String.format( "SELECT chat_id FROM CHAT WHERE init_sender ='" + authorisedUser+"'");
+            int rows = esql.executeQueryAndPrintResult(query);
+            
+        } catch (Exception e) {
+            System.err.println (e.getMessage ());
+            System.out.println("You are not the admin of any chats");
+            return;
+        }      
+	   try {
+           System.out.println("Which chat would you like to delete? (chat ID)");
+           chatid = in.readLine();
+		   String query = String.format( "SELECT chat_id FROM CHAT WHERE chat_id =" + chatid + " AND init_sender = '" +authorisedUser+"'");
+           int rows = esql.executeQuery(query);
+           if(rows == 0)
+           {
+                        System.out.println("That ID does not exist or you are not the admin of it");
+                        return;
+           }
+           query = String.format("DELETE FROM CHAT WHERE CHAT_ID = " + chatid + " AND init_sender = '" + authorisedUser + "'");
+           esql.executeUpdate(query);
+		   System.out.println("Successfully deleted chat");
+       } catch (Exception e) {
+           System.out.println ("Invalid Input");
+           //System.err.println (e.getMessage ());
+           return;
+       }
+   }
+	   
+	   
+ public static void EditChats(Messenger esql, String authorisedUser)
+   {
+               try{
+                   String query = String.format( "SELECT * FROM CHAT WHERE init_sender ='" + authorisedUser+"'");
+                int rows =  esql.executeQuery(query);
+                if(rows == 0)
+                {
+                    System.out.println("You are not the admin of any chats");
+                    return;
+                }
+                else
+                {
+                    query = String.format( "SELECT chat_id FROM CHAT WHERE init_sender ='" + authorisedUser+"'");
+                    rows = esql.executeQueryAndPrintResult(query);
+                    System.out.println("Enter the chat id that you wish to edit, -1 to go back: ");   
+                    String id = in.readLine();
+                    if(id.equals("-1")) return;
+                    query = String.format( "SELECT chat_id FROM CHAT WHERE chat_id =" + id+" AND init_sender = '" +authorisedUser+"'");
+                    rows = esql.executeQuery(query);
+                    if(rows == 0)
+                    {
+                        System.out.println("That ID does not exist or you are not the admin of it");
+                    }
+                    else
+                    {
+                        Editsubmenu(esql, authorisedUser, id);
+                    }
+ 
+                     
+ 
+                }
+                //System.out.println("Total Chats: " + rows);
+                return;
+            }catch(Exception e){
+            System.out.println ("Invalid Input");
+            //System.err.println (e.getMessage ());
+            return;
+        }     
+    }      
+
+   public static void Chats(Messenger esql, String authorisedUser){
+              boolean usermenu = true;
+              while(usermenu) {
+                System.out.println("Chat MENU");
+                System.out.println("---------");
+                System.out.println("1. Browse Chat list");
+                System.out.println("2. Create New Chat");
+                System.out.println("3. Delete Chat");
+                System.out.println("4. Edit Chat");
+                System.out.println(".........................");
+                System.out.println("0. Go Back");
+                switch (readChoice()){
+                   case 1: ListChats(esql, authorisedUser); break;
+                   case 2: AddChats(esql, authorisedUser); break;
+                   case 3: DeleteChats(esql, authorisedUser); break;
+                   case 4: EditChats(esql, authorisedUser); break;
+                   case 0: usermenu = false; break;
+                   default : System.out.println("Unrecognized choice!"); break;
+                }
+              }
    }//end Query6
 
 }//end Messenger
